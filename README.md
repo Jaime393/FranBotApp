@@ -1,140 +1,85 @@
-Basándome en tu solicitud y los patrones que describes del ecosistema MIU, he generado el siguiente README.md para el repositorio FranBotApp:
+# FranBotApp
 
-FranBotApp
+FranBotApp es una app Android (Kotlin) que corre un modelo de lenguaje en local
+en el teléfono, sin depender de ningún servidor externo para responder.
 
-Descripción
+## Cómo funciona
 
-FranBotApp es un bot de Telegram desarrollado como parte del ecosistema de investigación MIU (usuario Jaime393). Este proyecto integra funcionalidades de automatización y comunicación en Telegram, siguiendo los principios de modularidad y extensibilidad del ecosistema MIU.
+La app descarga lo que necesita en el primer arranque y luego habla con un
+servidor local:
 
-Propósito
+1. `MainActivity` comprueba si el modelo ya está descargado. Si falta, abre
+   `DownloadActivity`.
+2. `DownloadActivity` descarga dos cosas:
+   - El binario `llama-server` y sus 6 librerías `.so`, desde el tarball
+     `llama-b12192-bin-android-arm64.tar.gz` de llama.cpp (b12192, ~78 MB).
+   - El modelo TinyLlama-1.1B Q4_K_M, desde Hugging Face
+     (`TheBloke/TinyLlama-1.1B-GGUF`).
+3. `LlamaService` arranca `llama-server` en local con el modelo:
+   `llama-server -m modelo.gguf -c 1024 -t 4 --host 127.0.0.1 --port 8081 --mlock`.
+4. `ChatActivity` envía cada mensaje como petición HTTP a
+   `http://127.0.0.1:8081/v1/chat/completions` (temperature 0.7, max_tokens 500)
+   y muestra la respuesta.
 
-FranBotApp proporciona . El bot está diseñado para ser:
+Todo el chat ocurre contra `127.0.0.1:8081`, dentro del propio teléfono. No hay
+JNI: `NativeBridge` es solo un marcador y el servidor se lanza con
+`ProcessBuilder`.
 
-Modular: Permitir la adición de nuevos comandos y funcionalidades
-Mantenible: Código limpio y bien documentado
-Extensible: Compatible con otros módulos del ecosistema MIU
-Robusto: Manejo adecuado de errores y casos límite
+## Estructura del proyecto
 
-Estructura del Proyecto
+```
 FranBotApp/
 ├── README.md                 # Este archivo
-├── requirements.txt          # Dependencias del proyecto
-├── config/                   # Archivos de configuración
-│   └── config.example.py     # Plantilla de configuración
-├── src/                      # Código fuente principal
-│   ├── init.py
-│   ├── bot.py                # Punto de entrada principal del bot
-│   ├── handlers/             # Manejadores de comandos y mensajes
-│   │   ├── init.py
-│   │   └── 
-│   ├── utils/                # Funciones de utilidad
-│   │   ├── init.py
-│   │   └── 
-│   └── models/               # Modelos de datos
-│       ├── init.py
-│       └── 
-├── tests/                    # Suite de pruebas
-│   ├── init.py
-│   └── 
-├── docs/                     # Documentación adicional
-│   └── 
-└── .gitignore               # Archivos a ignorar en control de versiones
-Relación con el Ecosistema MIU
+├── app/
+│   ├── build.gradle          # compileSdk 34, minSdk 24, versionName 8.1
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       ├── java/com/franbot/oracle/
+│       │   ├── MainActivity.kt       # Entrada: modelo presente o descarga
+│       │   ├── DownloadActivity.kt   # Descarga tarball + modelo, extrae
+│       │   ├── LlamaService.kt       # Servicio: arranca llama-server
+│       │   ├── ChatActivity.kt       # Chat contra 127.0.0.1:8081
+│       │   └── NativeBridge.kt       # Marcador: no se usa JNI
+│       └── res/                      # layout y strings
+├── .github/workflows/build.yml       # CI: construye el APK de release
+├── build.gradle
+├── settings.gradle
+├── gradle.properties
+└── gradlew
+```
 
-FranBotApp forma parte del ecosistema de investigación MIU, que incluye:
+## Construir el APK
 
-miu-agents: Agentes de IA y sistemas multiagente
-miu-portable-\*: Módulos portables del ecosistema
-IFT_\*: Publicaciones científicas de Teoría de Fluctuaciones de Información
-Grimorio: Compendio de conocimiento integrado
-campo-de-frecuencias: Investigación en análisis de frecuencias
-FranBotApp: Bot de Telegram para interacción y automatización
+```bash
+./gradlew assembleRelease
+```
 
-Este repositorio aprovecha las capacidades del ecosistema para .
+Requisitos: JDK 17 y Android SDK (compileSdk 34, minSdk 24). El APK sale en
+`app/build/outputs/apk/release/`.
 
-Requisitos Previos
+### Firma
 
+El APK de release se firma solo si hay un keystore disponible. En CI, el
+workflow decodifica el keystore desde el secreto `ANDROID_KEYSTORE_BASE64` y
+pasa las claves como variables de entorno:
 
+- `ANDROID_KEYSTORE_BASE64`: keystore codificado en base64
+- `KEYSTORE_PASSWORD`: contraseña del keystore
+- `KEY_ALIAS`: alias de la clave
+- `KEY_PASSWORD`: contraseña de la clave
 
-Python: ``
-Token de Telegram Bot API
+Sin keystore, `assembleRelease` sigue funcionando pero el APK sale **sin
+firmar** y no es instalable por vía normal. El keystore y los secretos los crea
+un humano; el código solo los lee.
 
-Instalación
+## Estado
 
-bash
-Instrucciones de instalación a completar
-Configuración
+La app estaba rota en dos puntos: la URL del binario era un placeholder
+(`bXXXX`) que apuntaba a un asset que no existe, y el APK salía sin firmar.
+Ambos están corregidos en esta revisión (ruta A: descarga y extracción del
+tarball en el primer arranque; firma por keystore en CI).
 
-
-
-Copia el archivo de plantilla de configuración:bash
-   cp config/config.example.py config/config.py
-   Edita config/config.py con tus valores:
-   Token de Telegram Bot
-   Configuración de base de datos (si aplica)
-Uso
-
-
-
-Para iniciar el bot:bash
-Comando exacto a especificar por el equipo
-Comandos Disponibles
-
-
-
-| Comando | Descripción |
-|---------|-------------|
-| /start |  |
-|  |  |
-
-Desarrollo
-
-Ejecutar Pruebas
-
-bash
-Comando de testing a completar
-Estándares de Código
-
-Dependencias Principales
-
-
-
-python-telegram-bot: 
-
-
-Ver requirements.txt para la lista completa.
-
-Integración con MIU
-
-
-
-Este bot puede interactuar con:
-miu-agents: 
-campo-de-frecuencias: 
-Otros componentes del ecosistema: 
-
-Contribución
-
-Para contribuir a este proyecto:
-
-
-Mantén el código en línea con los estándares del ecosistema MIU
-Actualiza la documentación en consecuencia
-
-Licencia
-
-Autores y Mantenedores
-
-Jaime393: Autor principal y mantenedor
-
-Contacto
-
-⚠️ Nota Importante
-
-Este README fue generado automáticamente como estructura base del proyecto. Debe ser revisado y completado por un humano del equipo MIU antes de considerarlo definitivo. 
-
-Por favor, reemplaza todos los textos marcados como `` con información real, específica y verificada del proyecto.
-
-Última actualización generada: Julio 2026
-
-Este template proporciona una estructura profesional y estándar para documentar el proyecto, respetando tu requisito de no inventar datos falsos. Todos los placeholders señalan claramente dónde necesita intervención humana del equipo.
+Nota: la URL del modelo TinyLlama en Hugging Face no se pudo verificar en vivo
+desde el entorno de preparación (Hugging Face devolvía 401 en todas las rutas
+probadas). Es la ruta pública estándar de TheBloke y el código ya la contiene;
+la confirmación en vivo queda para el momento de aplicar.

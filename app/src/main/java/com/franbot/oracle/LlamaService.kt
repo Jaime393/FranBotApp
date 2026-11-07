@@ -26,6 +26,15 @@ class LlamaService : Service() {
             stopSelf()
             return
         }
+        // Las 6 librerias .so del tarball b12192 deben estar junto al binario.
+        val libs = listOf(
+            "libllama-server-impl.so", "libllama-common.so", "libmtmd.so",
+            "libllama.so", "libggml.so", "libggml-base.so"
+        )
+        if (libs.any { !File(filesDir, it).exists() }) {
+            stopSelf()
+            return
+        }
         val cmd = arrayOf(
             binFile.absolutePath,
             "-m", modelFile.absolutePath,
@@ -35,7 +44,11 @@ class LlamaService : Service() {
             "--port", "8081",
             "--mlock"
         )
-        process = ProcessBuilder(*cmd).redirectErrorStream(true).start()
+        val pb = ProcessBuilder(*cmd)
+        // El enlazador busca las .so en filesDir, junto a llama-server.
+        pb.environment()["LD_LIBRARY_PATH"] = filesDir.absolutePath
+        pb.redirectErrorStream(true)
+        process = pb.start()
     }
 
     private fun createNotification(): Notification {

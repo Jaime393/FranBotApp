@@ -12,10 +12,26 @@ android {
         versionCode 1
         versionName "8.1"
     }
+    signingConfigs {
+        release {
+            // Keystore en archivo; CI lo decodifica del secreto
+            // ANDROID_KEYSTORE_BASE64. Claves por entorno o por
+            // propiedades de Gradle (-PKEYSTORE_PASSWORD=...).
+            storeFile file(System.getenv("KEYSTORE_PATH") ?: "release.keystore")
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD")
+            keyAlias System.getenv("KEY_ALIAS") ?: project.findProperty("KEY_ALIAS")
+            keyPassword System.getenv("KEY_PASSWORD") ?: project.findProperty("KEY_PASSWORD")
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             shrinkResources false
+            // Firma solo si el keystore existe. Sin el, assembleRelease
+            // sigue funcionando pero el APK sale sin firmar.
+            if (file(System.getenv("KEYSTORE_PATH") ?: "release.keystore").exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
